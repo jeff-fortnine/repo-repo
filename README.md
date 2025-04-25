@@ -16,7 +16,7 @@ From the root directory of this repository run the following command.
 cargo install --path .
 ```
 
-Note that the directory to which Cargo crates are installed (`${HOME}/.cargo/bin/`) for example, must be on your system path.
+Note that the directory to which Cargo crates are installed (`${HOME}/.cargo/bin` for example) must be on your system path.
 
 # Usage
 
