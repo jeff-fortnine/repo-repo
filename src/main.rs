@@ -1,18 +1,15 @@
-use std::env::set_current_dir;
-use std::fs::read_to_string;
-use std::process::{Command, Stdio};
 use clap::Parser;
+use colored::Colorize;
+use std::env::set_current_dir;
+use std::process::{Command, Stdio};
 
 /// A simple program for performing maintenance on Git repositories
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// A text file containing relative paths to the Git repositories to maintain (one per line)
-    #[arg(short, long)]
-    file: Option<String>,
-    /// Relative paths to the Git repositories to maintain (will only be used if no file is specified)
+    /// Relative paths to the Git repositories to maintain
     #[arg(short, long, value_delimiter = ',')]
-    repos: Option<Vec<String>>,
+    repos: Vec<String>,
 }
 
 fn main() {
