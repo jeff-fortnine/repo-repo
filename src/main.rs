@@ -1,22 +1,62 @@
 use clap::Parser;
 use colored::Colorize;
 use std::env::set_current_dir;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use walkdir::WalkDir;
+
+// TODO implement interactive local branch maintenance
+// TODO improve error output
 
 /// A simple program for performing maintenance on Git repositories
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Relative paths to the Git repositories to maintain
-    #[arg(short, long, value_delimiter = ',')]
-    repos: Vec<String>,
+    /// The root directory to search for repositories (defaults to current directory)
+    #[arg(default_value = ".")]
+    path: PathBuf,
+
+    /// Search for repositories recursively
+    #[arg(short, long)]
+    recursive: bool,
 }
 
 fn main() {
     let args = Args::parse();
-    for repo in args.repos {
-        do_maintenance_on(&repo);
+    let repos = find_git_repos(&args.path, args.recursive);
+
+    if repos.is_empty() {
+        println!("{}", "No Git repositories found.".red());
+        return;
     }
+
+    for repo in repos {
+        println!(
+            "{} {}",
+            "Maintaining".blue(),
+            repo.display().to_string().bold()
+        );
+        let repo_path = repo.to_str().unwrap();
+        do_maintenance_on(repo_path);
+    }
+}
+
+fn find_git_repos(root: &PathBuf, recursive: bool) -> Vec<PathBuf> {
+    let mut repos = Vec::new();
+
+    let walker = WalkDir::new(root)
+        .max_depth(if recursive { usize::MAX } else { 2 })
+        .into_iter()
+        .filter_map(|e| e.ok());
+
+    for entry in walker {
+        if entry.file_name() == ".git" && entry.file_type().is_dir() {
+            if let Some(parent) = entry.path().parent() {
+                repos.push(parent.to_path_buf());
+            }
+        }
+    }
+    repos
 }
 
 fn do_maintenance_on(repo: &str) -> () {
@@ -70,12 +110,26 @@ fn get_stash_count_for(repo: &str) -> i32 {
         .stderr(Stdio::inherit())
         .output()
         .expect(format!("Failed to count stash entries on {repo}").as_str());
-    String::from_utf8(count.stdout).unwrap().trim().parse::<i32>().unwrap()
+    String::from_utf8(count.stdout)
+        .unwrap()
+        .trim()
+        .parse::<i32>()
+        .unwrap()
 }
 
 fn get_stash_warning_message(repo: &str, count: i32) -> String {
     let yellow_repo = repo.yellow();
     let yellow_count = count.to_string().yellow();
-    let stash_entry_str = if count == 1 { "stash entry" } else { "stash entries" };
-    format!("{} {} {} {}", yellow_repo, "has".yellow(), yellow_count, stash_entry_str.yellow())
+    let stash_entry_str = if count == 1 {
+        "stash entry"
+    } else {
+        "stash entries"
+    };
+    format!(
+        "{} {} {} {}",
+        yellow_repo,
+        "has".yellow(),
+        yellow_count,
+        stash_entry_str.yellow()
+    )
 }
